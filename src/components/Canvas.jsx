@@ -1,38 +1,40 @@
 import React from "react";
 
 import Cell from "./cell";
+import { allNeighours } from "../utils/neighbour";
 
 const Canvas = ({ row }) => {
   const [mat, setMat] = React.useState([[]]);
-  const [bomb, setBomb] = React.useState([[]]);
+  const [visit, setVisit] = React.useState(new Set());
+  const [bomb, setBomb] = React.useState([]);
 
   const generateBomb = (num) => {
+    const b = [];
     const set = new Set();
-    const createBomb = [];
-    while (createBomb.length < num) {
+    while (set.size < num) {
       let x = Math.floor(Math.random() * num);
       let y = Math.floor(Math.random() * num);
       let key = x + "," + y;
-      if (!set.has(key)) createBomb.push([x, y]);
+      b.push([x, y]);
       set.add(key);
     }
-    setBomb(createBomb);
-    return createBomb;
+    setBomb(b);
+    return set;
   };
 
-  const randomGen = (num, createBomb) => {
+  const randomGen = (num, set) => {
     let matrix = [];
     for (let i = 0; i < num; i++) {
       let subMatrix = [];
       for (let j = 0; j < num; j++) {
-        subMatrix.push(0);
+        const key = i + "," + j;
+        if (set.has(key)) {
+          subMatrix.push("x");
+        } else {
+          subMatrix.push(0);
+        }
       }
       matrix.push(subMatrix);
-    }
-
-    for (let ele of createBomb) {
-      let [x, y] = ele;
-      matrix[x][y] = "x";
     }
 
     const direction = [
@@ -72,16 +74,55 @@ const Canvas = ({ row }) => {
     setMat(matrix);
   };
 
+  const showVisit = (i, j) => {
+    let key = i + "," + j;
+    const tempSet = new Set(visit);
+
+    if (!tempSet.has(key)) {
+      tempSet.add(key);
+    }
+
+    if (mat[i][j] !== 0) {
+      if (mat[i][j] === "x") {
+        console.log("end game");
+        for (let ele of bomb) {
+          let [r, c] = ele;
+          key = r + "," + c;
+          tempSet.add(key);
+        }
+      }
+    } else {
+      const queue = [[i, j]];
+
+      while (queue.length > 0) {
+        const [r, c] = queue.shift();
+        const neighbour = allNeighours(r, c, row);
+
+        for (let n of neighbour) {
+          let [nr, nc] = n;
+          key = nr + "," + nc;
+          if (mat[nr][nc] === 0 && !tempSet.has(key)) {
+            tempSet.add(key);
+            queue.push([nr, nc]);
+          }
+          tempSet.add(key);
+        }
+      }
+    }
+
+    setVisit(tempSet);
+  };
+
   React.useEffect(() => {
-    const createBomb = generateBomb(row);
-    randomGen(row, createBomb);
+    const set = generateBomb(row);
+    randomGen(row, set);
   }, []);
 
   return (
     <div className="canvasWrapper">
       <div className="canvas">
         {mat.map((_, i) => (
-          <Cell key={i} i={i} mat={mat} />
+          <Cell key={i} showVisit={showVisit} i={i} mat={mat} visit={visit} />
         ))}
       </div>
     </div>
